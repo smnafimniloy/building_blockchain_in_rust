@@ -13,3 +13,4 @@ sha256 = "1.6.0"
 uint = "0.9.5"
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 hex = "0.4.3"
+rand = "0.8.5"
