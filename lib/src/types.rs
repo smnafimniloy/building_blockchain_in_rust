@@ -3,12 +3,14 @@ use uuid:: Uuid;
 use chrono:: {DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use crate::crypto::{PublicKey, Signature};
+use crate::error::{BtcError, Result};
 use crate::sha256::Hash;
 use crate::util::MerkleRoot;
-
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Blockchain {
+    pub utxos: HashMap<hash, TransactionOutput>,
     pub blocks:Vec<Block>,
 }
 
@@ -52,6 +54,7 @@ pub struct TransactionOutput {
 impl Blockchain {
     pub fn new () -> Self {
         Blockchain {
+            utxos: HashMap::new(),
             blocks: vec![]
         }
     }
@@ -118,3 +121,59 @@ impl TransactionOutput {
 }
 }
 
+pub fn add_block (
+    &mut self, 
+    block: Block,
+)-> Result<()> {
+    if self.blocks.is_empty() {
+        if block.header.prev_block_hash != Hash::zero()
+        {
+            println!("zero hash");
+            return Err(BtcError::InvalidBlock);
+        }
+    } else {
+        let last_block = self.blocks.last().unwrap();
+        if block.header.prev_block_hash != last_block.hash()
+        {
+            println!("prev hash is wrong");
+            return Err(BtcError::InvalidBlock);
+        }
+        if !block
+            .header
+            .hash()
+            .matches_target(block.header.target)
+        {
+                println!("does not match target");
+                return Err(BtcError::InvalidBlock);
+        }
+        if !block
+            .header
+            .hash()
+            .matches_target(block.header.target)
+        {
+            println!("does not match target");
+            return Err(BtcError::InvalidBlock);
+        }
+        let calculated_merkle_root = 
+            MerkleRoot::calculate(&block.transactions);
+        if calculated_merkle_root
+            != block.header.merkle_root
+        {
+            println!("invalid merkle_root");
+            return Err(BtcError::InvalidMerkleRoot);
+        }
+
+        if block.header.timestamp 
+            <= last_block.header.timestamp
+        {
+            return Err(BtcError::InvalidBlock);
+        }
+
+        block.verify_transactions(
+            self.block_height(),
+            &self.utxos,
+        )?;
+    }
+    self.blocks.push(block);
+    Ok(())
+}
